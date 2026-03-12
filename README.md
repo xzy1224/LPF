@@ -413,10 +413,6 @@ GET /api/share/download/:id?password=xxx
 
 上传的文件默认存储在 `static/uploads` 目录中。
 
-## 许可证
-
-MIT License - 自由使用、修改和分发
-
 ---
 
 <p align="center">Made with ❤️ by LPF Team</p>
