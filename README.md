@@ -3,7 +3,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/LPF-Lightweight%20File%20Server-green?style=for-the-badge" alt="LPF">
   <img src="https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square" alt="Node.js">
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License">
 </p>
 
 ## 简介
