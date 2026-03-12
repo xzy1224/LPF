@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>开放API文档 - LPF</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    body { background: #f5f5f5; }
+    .api-card { transition: transform 0.2s; }
+    .api-card:hover { transform: translateY(-2px); }
+    .method { font-weight: bold; padding: 2px 8px; border-radius: 3px; }
+    .method.get { background: #61affe; color: #fff; }
+    .method.post { background: #49cc90; color: #fff; }
+    .method.put { background: #fca130; color: #fff; }
+    .method.delete { background: #f93e3e; color: #fff; }
+    code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
+    .param-table td { vertical-align: middle; }
+    .nav-sidebar { position: sticky; top: 20px; }
+    .code-block { background: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #dee2e6; }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <h1 class="mb-4"><i class="bi bi-cloud-download-fill me-2"></i>LPF 开放API 文档</h1>
+
+    <div class="alert alert-success mb-4">
+      <i class="bi bi-info-circle me-2"></i>
+      <strong>服务器地址：</strong>
+      <span id="serverAddress">加载中...</span>
+      <button class="btn btn-sm btn-outline-success ms-2" onclick="copyServerAddress()">
+        <i class="bi bi-clipboard"></i>复制
+      </button>
+    </div>
+
+    <div class="alert alert-info mb-4">
+      <i class="bi bi-lightbulb me-2"></i>
+      <strong>认证方式：</strong>所有开放API通过URL参数传递Token，格式：<code>?token=YOUR_TOKEN</code>
+    </div>
+
+    <div class="row">
+      <div class="col-md-3">
+        <div class="nav-sidebar">
+          <div class="list-group">
+            <a href="#upload" class="list-group-item list-group-item-action">文件上传</a>
+            <a href="#multiple" class="list-group-item list-group-item-action">批量上传</a>
+            <a href="#chunk" class="list-group-item list-group-item-action">分片上传</a>
+            <a href="#chunk-check" class="list-group-item list-group-item-action">分片检查</a>
+            <a href="#files" class="list-group-item list-group-item-action">文件列表</a>
+            <a href="#preview" class="list-group-item list-group-item-action">文件预览</a>
+            <a href="#download" class="list-group-item list-group-item-action">文件下载</a>
+            <a href="#delete" class="list-group-item list-group-item-action">文件删除</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-9">
+        <!-- 文件上传 -->
+        <h3 id="upload" class="mt-4 mb-3"><i class="bi bi-folder-fill me-2"></i>一、文件上传</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/public/upload - 单文件上传</h5>
+            <hr>
+            <p><strong>请求头：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">Content-Type</td>
+                <td>multipart/form-data</td>
+              </tr>
+            </table>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">token</td>
+                <td>API Token（必填）</td>
+              </tr>
+            </table>
+            <p><strong>表单字段：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">file</td>
+                <td>要上传的文件（必填）</td>
+              </tr>
+            </table>
+            <p><strong>请求示例：</strong></p>
+            <div class="code-block">
+              <code>POST /api/public/upload?token=YOUR_TOKEN</code><br><br>
+              Content-Type: multipart/form-data<br>
+              file: (二进制文件数据)
+            </div>
+            <p><strong>成功响应：</strong></p>
+            <pre><code>{
+  "id": 1,
+  "filename": "xxx.pdf",
+  "original_name": "test.pdf",
+  "size": 1024,
+  "message": "File uploaded successfully"
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- 批量上传 -->
+        <h3 id="multiple" class="mt-4 mb-3"><i class="bi bi-cloud-upload-fill me-2"></i>二、批量上传</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/public/upload/multiple - 批量上传文件</h5>
+            <hr>
+            <p><strong>请求头：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">Content-Type</td>
+                <td>multipart/form-data</td>
+              </tr>
+            </table>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">token</td>
+                <td>API Token（必填）</td>
+              </tr>
+            </table>
+            <p><strong>表单字段：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">files</td>
+                <td>文件数组（最多50个，必填）</td>
+              </tr>
+            </table>
+            <p><strong>请求示例：</strong></p>
+            <div class="code-block">
+              <code>POST /api/public/upload/multiple?token=YOUR_TOKEN</code><br><br>
+              Content-Type: multipart/form-data<br>
+              files: file1.txt<br>
+              files: file2.txt<br>
+              files: file3.txt
+            </div>
+            <p><strong>成功响应：</strong></p>
+            <pre><code>{
+  "total": 3,
+  "files": [
+    { "id": 1, "filename": "xxx1.txt", "original_name": "file1.txt", "size": 100 },
+    { "id": 2, "filename": "xxx2.txt", "original_name": "file2.txt", "size": 200 },
+    { "id": 3, "filename": "xxx3.txt", "original_name": "file3.txt", "size": 300 }
+  ],
+  "message": "3 files uploaded successfully"
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- 分片上传完整流程 -->
+        <h3 id="chunk" class="mt-4 mb-3"><i class="bi bi-layers-fill me-2"></i>三、分片上传（断点续传）</h3>
+
+        <div class="alert alert-primary mb-3">
+          <i class="bi bi-lightbulb me-2"></i>
+          <strong>适用场景：</strong>大文件上传（如视频、大型压缩包），支持断点续传
+        </div>
+
+        <!-- 第一步：准备上传 -->
+        <div class="card mb-3" style="border-left: 4px solid #0d6efd;">
+          <div class="card-body">
+            <h5><span class="badge bg-primary">第一步</span> 准备分片上传</h5>
+            <p>将大文件分割成多个小分片（建议每个分片1MB-5MB），并计算总分片数。</p>
+            <p>例如：上传一个100MB的视频文件，每个分片1MB，则总分片数为100。</p>
+          </div>
+        </div>
+
+        <!-- 第二步：逐个上传分片 -->
+        <div class="card mb-3" style="border-left: 4px solid #198754;">
+          <div class="card-body">
+            <h5><span class="badge bg-success">第二步</span> 循环上传分片</h5>
+            <p>使用 <code>POST /api/public/upload/chunk</code> 接口逐个上传分片：</p>
+            <table class="table table-bordered param-table small mt-3">
+              <tr>
+                <td style="width: 150px;"><strong>接口地址</strong></td>
+                <td><code>POST /api/public/upload/chunk?token=YOUR_TOKEN</code></td>
+              </tr>
+              <tr>
+                <td><strong>Content-Type</strong></td>
+                <td>multipart/form-data</td>
+              </tr>
+              <tr>
+                <td><strong>filename</strong></td>
+                <td>最终文件名（如 video.mp4）</td>
+              </tr>
+              <tr>
+                <td><strong>chunk</strong></td>
+                <td>当前分片编号，从0开始（0, 1, 2, ...）</td>
+              </tr>
+              <tr>
+                <td><strong>chunks</strong></td>
+                <td>总分片数（如 100）</td>
+              </tr>
+              <tr>
+                <td><strong>chunkData</strong></td>
+                <td>当前分片的二进制数据</td>
+              </tr>
+            </table>
+            <p class="mt-3"><strong>调用示例：</strong></p>
+            <div class="code-block">
+              <code>POST /api/public/upload/chunk?token=YOUR_TOKEN</code><br><br>
+              --boundary<br>
+              Content-Disposition: form-data; name="filename"<br><br>
+              video.mp4<br>
+              --boundary<br>
+              Content-Disposition: form-data; name="chunk"<br><br>
+              0<br>
+              --boundary<br>
+              Content-Disposition: form-data; name="chunks"<br><br>
+              100<br>
+              --boundary<br>
+              Content-Disposition: form-data; name="chunkData"; filename="chunk0"<br><br>
+              (二进制数据)<br>
+              --boundary--
+            </div>
+          </div>
+        </div>
+
+        <!-- 第三步：检查上传结果 -->
+        <div class="card mb-3" style="border-left: 4px solid #ffc107;">
+          <div class="card-body">
+            <h5><span class="badge bg-warning text-dark">第三步</span> 检查上传结果</h5>
+            <p>每次上传一个分片后，检查响应内容：</p>
+            <table class="table table-bordered">
+              <tr>
+                <th>响应类型</th>
+                <th>响应内容</th>
+                <th>后续操作</th>
+              </tr>
+              <tr>
+                <td><strong>上传中</strong></td>
+                <td><pre class="mb-0"><code>{
+  "chunk": 0,
+  "uploaded": 1,
+  "total": 100,
+  "message": "Chunk uploaded successfully"
+}</code></pre></td>
+                <td>继续上传下一个分片（chunk+1）</td>
+              </tr>
+              <tr>
+                <td><strong>上传完成</strong></td>
+                <td><pre class="mb-0"><code>{
+  "id": 1,
+  "filename": "video.mp4",
+  "size": 104857600,
+  "message": "File uploaded successfully"
+}</code></pre></td>
+                <td><span class="text-success">所有分片已上传完成！</span></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- 完整流程图 -->
+        <div class="card mb-4" style="border-left: 4px solid #dc3545;">
+          <div class="card-body">
+            <h5><i class="bi bi-diagram-3"></i> 完整调用流程</h5>
+            <div class="mt-3">
+              <p><strong>流程说明：</strong></p>
+              <ol>
+                <li>计算文件大小和分片数量，确定每个分片的大小</li>
+                <li>设置 <code>filename</code> = "video.mp4"，<code>chunks</code> = 100</li>
+                <li>循环从 <code>chunk</code> = 0 开始上传：</li>
+                <ul>
+                  <li>读取第 <code>chunk</code> 个分片的数据作为 <code>chunkData</code></li>
+                  <li>发送 POST 请求到 <code>/api/public/upload/chunk?token=YOUR_TOKEN</code></li>
+                  <li>检查响应：如果响应中包含 <code>id</code> 字段，说明上传完成，停止循环</li>
+                  <li>如果响应中没有 <code>id</code> 字段，<code>chunk</code>++，继续上传下一个分片</li>
+                </ul>
+                <li>当响应中包含 <code>id</code> 时，分片上传全部完成</li>
+              </ol>
+            </div>
+            <div class="alert alert-secondary mt-3 mb-0">
+              <strong>简化逻辑：</strong>只需要循环上传分片，当响应中出现了 <code>"id": 数字</code> 时，就表示所有分片已经上传完成，可以停止上传了。
+            </div>
+          </div>
+        </div>
+
+        <!-- 分片检查接口 -->
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/public/upload/chunk - 分片上传</h5>
+            <hr>
+            <p><strong>请求头：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">Content-Type</td>
+                <td>multipart/form-data</td>
+              </tr>
+            </table>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">token</td>
+                <td>API Token（必填）</td>
+              </tr>
+            </table>
+            <p><strong>表单字段：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">filename</td>
+                <td>最终文件名（如 video.mp4，必填）</td>
+              </tr>
+              <tr>
+                <td>chunk</td>
+                <td>当前分片编号，从0开始（如 0, 1, 2...，必填）</td>
+              </tr>
+              <tr>
+                <td>chunks</td>
+                <td>总分片数（如 100，必填）</td>
+              </tr>
+              <tr>
+                <td>chunkData</td>
+                <td>当前分片的二进制数据（必填）</td>
+              </tr>
+            </table>
+            <p><strong>上传中响应：</strong></p>
+            <pre><code>{
+  "chunk": 0,
+  "uploaded": 1,
+  "total": 100,
+  "message": "Chunk uploaded successfully"
+}</code></pre>
+            <p><strong>上传完成响应：</strong></p>
+            <pre><code>{
+  "id": 1,
+  "filename": "video.mp4",
+  "size": 104857600,
+  "message": "File uploaded successfully"
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- 分片检查 -->
+        <h3 id="chunk-check" class="mt-4 mb-3"><i class="bi bi-check-circle-fill me-2"></i>四、分片上传检查（断点续传）</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/public/upload/chunk/check - 检查已上传的分片</h5>
+            <hr>
+            <p><strong>请求头：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">Content-Type</td>
+                <td>application/json</td>
+              </tr>
+            </table>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">token</td>
+                <td>API Token（必填）</td>
+              </tr>
+            </table>
+            <p><strong>请求体：</strong></p>
+            <pre><code>{
+  "filename": "video.mp4",
+  "chunk": 0,
+  "chunks": 100
+}</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "uploadedChunks": [0, 1, 2, 5, 8],
+  "needUpload": true
+}</code></pre>
+            <p><strong>响应说明：</strong></p>
+            <ul>
+              <li><code>uploadedChunks</code>: 已上传的分片编号数组</li>
+              <li><code>needUpload</code>: 当前分片是否需要上传（true=需要，false=已存在）</li>
+            </ul>
+            <p><strong>使用场景：</strong>上传中断后，使用此接口检查已上传的分片，只上传未完成的部分（断点续传）。</p>
+          </div>
+        </div>
+
+        <!-- 文件列表 -->
+        <h3 id="files" class="mt-4 mb-3"><i class="bi bi-list-ul me-2"></i>五、文件列表查询</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/public/files - 获取文件列表</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">token</td>
+                <td>API Token（必填）</td>
+              </tr>
+              <tr>
+                <td>page</td>
+                <td>页码（可选，默认1）</td>
+              </tr>
+              <tr>
+                <td>pageSize</td>
+                <td>每页数量（可选，默认20）</td>
+              </tr>
+            </table>
+            <p><strong>请求示例：</strong></p>
+            <div class="code-block">
+              <code>GET /api/public/files?token=YOUR_TOKEN&page=1&pageSize=10</code>
+            </div>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "list": [
+    {
+      "id": 1,
+      "filename": "xxx.pdf",
+      "original_name": "test.pdf",
+      "size": 1024,
+      "created_at": "2024-01-01",
+      "is_preview_open": 1
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "pageSize": 20,
+  "totalPages": 5
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- 文件预览 -->
+        <h3 id="preview" class="mt-4 mb-3"><i class="bi bi-eye-fill me-2"></i>六、文件预览</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/public/preview/:id - 预览文件</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">token</td>
+                <td>API Token（必填）</td>
+              </tr>
+              <tr>
+                <td>id</td>
+                <td>文件ID（路径参数，必填）</td>
+              </tr>
+            </table>
+            <p><strong>请求示例：</strong></p>
+            <div class="code-block">
+              <code>GET /api/public/preview/1?token=YOUR_TOKEN</code>
+            </div>
+            <p><strong>说明：</strong></p>
+            <ul>
+              <li>返回文件内容，可在浏览器中直接预览</li>
+              <li>支持图片、PDF、视频、音频等格式</li>
+              <li>需要在文件管理中开启"开放预览"开关</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 文件下载 -->
+        <h3 id="download" class="mt-4 mb-3"><i class="bi bi-download me-2"></i>七、文件下载</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/public/download/:id - 下载文件</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">token</td>
+                <td>API Token（必填）</td>
+              </tr>
+              <tr>
+                <td>id</td>
+                <td>文件ID（路径参数，必填）</td>
+              </tr>
+            </table>
+            <p><strong>请求示例：</strong></p>
+            <div class="code-block">
+              <code>GET /api/public/download/1?token=YOUR_TOKEN</code>
+            </div>
+            <p><strong>说明：</strong>返回文件下载（Content-Disposition: attachment）</p>
+          </div>
+        </div>
+
+        <!-- 文件删除 -->
+        <h3 id="delete" class="mt-4 mb-3"><i class="bi bi-trash-fill me-2"></i>八、文件删除</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method delete">DELETE</span> /api/public/files/:id - 删除文件</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 150px;">token</td>
+                <td>API Token（必填）</td>
+              </tr>
+              <tr>
+                <td>id</td>
+                <td>文件ID（路径参数，必填）</td>
+              </tr>
+            </table>
+            <p><strong>请求示例：</strong></p>
+            <div class="code-block">
+              <code>DELETE /api/public/files/1?token=YOUR_TOKEN</code>
+            </div>
+            <p><strong>成功响应：</strong></p>
+            <pre><code>{ "message": "File deleted successfully" }</code></pre>
+          </div>
+        </div>
+
+        <div class="alert alert-warning mt-4">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <strong>注意事项：</strong>
+          <ul class="mb-0 mt-2">
+            <li>使用Token管理中创建的有效Token</li>
+            <li>确保Token未过期且未禁用</li>
+            <li>预览功能需要在文件管理中开启"开放预览"开关</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <footer class="text-center text-muted mt-5 py-4">
+      <p>LPF 轻量级文件服务器 &copy; 2024</p>
+    </footer>
+  </div>
+
+  <script>
+    // 获取服务器地址
+    document.getElementById('serverAddress').textContent = window.location.host;
+
+    function copyServerAddress() {
+      navigator.clipboard.writeText(window.location.host).then(() => {
+        alert('服务器地址已复制！');
+      }).catch(() => {
+        alert('复制失败，请手动复制: ' + window.location.host);
+      });
+    }
+  </script>
+</body>
+</html>

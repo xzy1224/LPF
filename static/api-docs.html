@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API文档 - LPF</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    body { background: #f5f5f5; }
+    .api-card { transition: transform 0.2s; }
+    .api-card:hover { transform: translateY(-2px); }
+    .method { font-weight: bold; padding: 2px 8px; border-radius: 3px; }
+    .method.get { background: #61affe; color: #fff; }
+    .method.post { background: #49cc90; color: #fff; }
+    .method.put { background: #fca130; color: #fff; }
+    .method.delete { background: #f93e3e; color: #fff; }
+    code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
+    .param-table td { vertical-align: middle; }
+    .nav-sidebar { position: sticky; top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <h1 class="mb-4"><i class="bi bi-book-fill me-2"></i>LPF API 文档</h1>
+
+    <div class="alert alert-info mb-4">
+      <i class="bi bi-info-circle me-2"></i>
+      <strong>基础说明：</strong>
+      <ul class="mb-0 mt-2">
+        <li>开放API使用URL参数传递Token：<code>?token=YOUR_TOKEN</code></li>
+        <li>所有API返回JSON格式数据</li>
+        <li>Base URL: <code>http://localhost:8188</code></li>
+      </ul>
+    </div>
+
+    <div class="row">
+      <div class="col-md-3">
+        <div class="nav-sidebar">
+          <div class="list-group">
+            <a href="#auth" class="list-group-item list-group-item-action">认证接口</a>
+            <a href="#files" class="list-group-item list-group-item-action">文件管理接口</a>
+            <a href="#tokens" class="list-group-item list-group-item-action">Token管理接口</a>
+            <a href="#collect" class="list-group-item list-group-item-action">文件收取接口</a>
+            <a href="#public" class="list-group-item list-group-item-action">开放API接口</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-9">
+        <h3 id="auth" class="mt-4 mb-3"><i class="bi bi-shield-lock me-2"></i>一、认证接口</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/auth/login - 用户登录</h5>
+            <hr>
+            <p><strong>请求头：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr>
+                <td style="width: 120px;">Content-Type</td>
+                <td>application/json</td>
+              </tr>
+            </table>
+            <p><strong>请求体：</strong></p>
+            <pre><code>{
+  "username": "admin",
+  "password": "admin123"
+}</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "role": "admin"
+  }
+}</code></pre>
+            <p><strong>错误响应：</strong></p>
+            <pre><code>{ "error": "Invalid username or password" }</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/auth/register - 用户注册</h5>
+            <hr>
+            <p><strong>请求体：</strong></p>
+            <pre><code>{
+  "username": "user",
+  "password": "123456"
+}</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 2,
+    "username": "user"
+  }
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/auth/me - 获取当前用户信息</h5>
+            <hr>
+            <p><strong>请求头：</strong></p>
+            <pre><code>Authorization: Bearer YOUR_TOKEN</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "id": 1,
+  "username": "admin",
+  "role": "admin",
+  "created_at": "2024-01-01 00:00:00"
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method put">PUT</span> /api/auth/password - 修改密码</h5>
+            <hr>
+            <p><strong>请求头：</strong></p>
+            <pre><code>Authorization: Bearer YOUR_TOKEN
+Content-Type: application/json</code></pre>
+            <p><strong>请求体：</strong></p>
+            <pre><code>{
+  "oldPassword": "old_password",
+  "newPassword": "new_password"
+}</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{ "message": "Password updated successfully" }</code></pre>
+          </div>
+        </div>
+
+        <h3 id="files" class="mt-4 mb-3"><i class="bi bi-folder-fill me-2"></i>二、文件管理接口</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/files - 文件列表</h5>
+            <hr>
+            <p><strong>请求头：</strong></p>
+            <pre><code>Authorization: Bearer YOUR_TOKEN</code></pre>
+            <p><strong>查询参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td>search</td><td>文件名搜索关键字（可选）</td></tr>
+              <tr><td>sort</td><td>排序字段：created_at, name, size（可选，默认created_at）</td></tr>
+              <tr><td>order</td><td>排序方式：asc, desc（可选，默认desc）</td></tr>
+              <tr><td>page</td><td>页码（可选，默认1）</td></tr>
+              <tr><td>pageSize</td><td>每页数量（可选，默认20）</td></tr>
+              <tr><td>dateFilter</td><td>日期筛选：today, week, month, all（可选）</td></tr>
+            </table>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "list": [
+    {
+      "id": 1,
+      "filename": "xxx.pdf",
+      "original_name": "test.pdf",
+      "size": 1024,
+      "created_at": "2024-01-01 00:00:00",
+      "is_preview_open": 1,
+      "owner": "admin"
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "pageSize": 20,
+  "totalPages": 5
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/files/upload - 文件上传</h5>
+            <hr>
+            <p><strong>请求头：</strong></p>
+            <pre><code>Authorization: Bearer YOUR_TOKEN</code></pre>
+            <p><strong>表单字段：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">file</td><td>上传的文件（必填）</td></tr>
+            </table>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "id": 1,
+  "filename": "xxx.pdf",
+  "original_name": "test.pdf",
+  "size": 1024,
+  "message": "File uploaded successfully"
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/files/:id - 获取文件信息</h5>
+            <hr>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>文件ID（必填）</td></tr>
+            </table>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "id": 1,
+  "filename": "xxx.pdf",
+  "original_name": "test.pdf",
+  "size": 1024,
+  "created_at": "2024-01-01 00:00:00",
+  "is_preview_open": 1
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/files/:id/preview - 预览文件信息</h5>
+            <hr>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>文件ID（必填）</td></tr>
+            </table>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "file": { ... },
+  "fileType": { "type": "pdf", "mimeType": "application/pdf" },
+  "previewUrl": "/uploads/xxx.pdf"
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/files/:id/download - 下载文件</h5>
+            <hr>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>文件ID（必填）</td></tr>
+            </table>
+            <p><strong>响应：</strong>返回文件二进制数据</p>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method delete">DELETE</span> /api/files/:id - 删除文件</h5>
+            <hr>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>文件ID（必填）</td></tr>
+            </table>
+            <p><strong>响应：</strong></p>
+            <pre><code>{ "message": "File deleted successfully" }</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method put">PUT</span> /api/files/:id/preview-open - 开启/关闭预览</h5>
+            <hr>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>文件ID（必填）</td></tr>
+            </table>
+            <p><strong>请求体：</strong></p>
+            <pre><code>{ "open": true }</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{ "message": "Preview updated successfully" }</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/files/:id/share - 分享文件</h5>
+            <hr>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>文件ID（必填）</td></tr>
+            </table>
+            <p><strong>请求体：</strong></p>
+            <pre><code>{
+  "type": "permanent",  // permanent 或 temporary
+  "expiresAt": "2024-12-31T23:59:59"  // 过期时间（temporary时必填）
+}</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "id": 1,
+  "file_id": 1,
+  "token": "xxx",
+  "type": "permanent",
+  "expires_at": null,
+  "download_url": "/api/share/download/xxx"
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/files/shares/list - 分享列表</h5>
+            <hr>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "list": [
+    {
+      "id": 1,
+      "file_id": 1,
+      "token": "xxx",
+      "type": "permanent",
+      "created_at": "2024-01-01"
+    }
+  ]
+}</code></pre>
+          </div>
+        </div>
+
+        <h3 id="tokens" class="mt-4 mb-3"><i class="bi bi-key-fill me-2"></i>三、Token管理接口</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/tokens - Token列表</h5>
+            <hr>
+            <p><strong>查询参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">page</td><td>页码（可选）</td></tr>
+              <tr><td>pageSize</td><td>每页数量（可选）</td></tr>
+            </table>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "list": [
+    {
+      "id": 1,
+      "token": "xxx",
+      "name": "My Token",
+      "type": "permanent",
+      "disabled": 0,
+      "expires_at": null,
+      "created_at": "2024-01-01"
+    }
+  ],
+  "total": 10,
+  "page": 1,
+  "pageSize": 20
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/tokens - 创建Token</h5>
+            <hr>
+            <p><strong>请求体：</strong></p>
+            <pre><code>{
+  "name": "My API Token",
+  "type": "permanent",  // permanent 或 temporary
+  "expiresAt": "2024-12-31T23:59:59"  // 过期时间（可选）
+}</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "id": 1,
+  "token": "0dce8970-1482-4e53-ad8c-e4d28a5db52b",
+  "name": "My API Token",
+  "type": "permanent",
+  "message": "Token created successfully"
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method put">PUT</span> /api/tokens/:id - 更新Token</h5>
+            <hr>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>Token ID（必填）</td></tr>
+            </table>
+            <p><strong>请求体：</strong></p>
+            <pre><code>{
+  "name": "New Name",
+  "disabled": false
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method delete">DELETE</span> /api/tokens/:id - 删除Token</h5>
+            <hr>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>Token ID（必填）</td></tr>
+            </table>
+            <p><strong>响应：</strong></p>
+            <pre><code>{ "message": "Token deleted successfully" }</code></pre>
+          </div>
+        </div>
+
+        <h3 id="collect" class="mt-4 mb-3"><i class="bi bi-link-45deg me-2"></i>四、文件收取接口</h3>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/collect/generate - 生成分享链接</h5>
+            <hr>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "token": "xxx",
+  "url": "/collect/xxx"
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/collect/list - 收取链接列表</h5>
+            <hr>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "list": [
+    {
+      "id": 1,
+      "token": "xxx",
+      "url": "/collect/xxx",
+      "created_at": "2024-01-01"
+    }
+  ]
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method delete">DELETE</span> /api/collect/:id - 删除收取链接</h5>
+            <hr>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>收取链接ID（必填）</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <h3 id="public" class="mt-4 mb-3"><i class="bi bi-cloud-download me-2"></i>五、开放API接口</h3>
+
+        <div class="alert alert-warning mb-3">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <strong>认证方式：</strong>所有开放API通过URL参数传递Token：<code>?token=YOUR_TOKEN</code>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/public/files - 文件列表查询</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">token</td><td>API Token（必填）</td></tr>
+              <tr><td>page</td><td>页码（可选，默认1）</td></tr>
+              <tr><td>pageSize</td><td>每页数量（可选，默认20）</td></tr>
+            </table>
+            <p><strong>示例：</strong></p>
+            <pre><code>GET /api/public/files?token=YOUR_TOKEN&page=1&pageSize=10</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "list": [
+    {
+      "id": 1,
+      "filename": "xxx.pdf",
+      "original_name": "test.pdf",
+      "size": 1024,
+      "created_at": "2024-01-01",
+      "is_preview_open": 1
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "pageSize": 20,
+  "totalPages": 5
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/public/upload - 文件上传</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">token</td><td>API Token（必填）</td></tr>
+            </table>
+            <p><strong>表单字段：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">file</td><td>上传的文件（必填）</td></tr>
+            </table>
+            <p><strong>示例：</strong></p>
+            <pre><code>POST /api/public/upload?token=YOUR_TOKEN</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "id": 1,
+  "filename": "xxx.pdf",
+  "original_name": "test.pdf",
+  "size": 1024,
+  "message": "File uploaded successfully"
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method delete">DELETE</span> /api/public/files/:id - 文件删除</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">token</td><td>API Token（必填）</td></tr>
+            </table>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>文件ID（必填）</td></tr>
+            </table>
+            <p><strong>示例：</strong></p>
+            <pre><code>DELETE /api/public/files/1?token=YOUR_TOKEN</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{ "message": "File deleted successfully" }</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/public/preview/:id - 文件预览</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">token</td><td>API Token（必填）</td></tr>
+            </table>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>文件ID（必填）</td></tr>
+            </table>
+            <p><strong>示例：</strong></p>
+            <pre><code>GET /api/public/preview/1?token=YOUR_TOKEN</code></pre>
+            <p><strong>说明：</strong>返回文件内容，可在浏览器中直接预览。需在文件管理中开启"开放预览"开关。</p>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method get">GET</span> /api/public/download/:id - 文件下载</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">token</td><td>API Token（必填）</td></tr>
+            </table>
+            <p><strong>路径参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">id</td><td>文件ID（必填）</td></tr>
+            </table>
+            <p><strong>示例：</strong></p>
+            <pre><code>GET /api/public/download/1?token=YOUR_TOKEN</code></pre>
+            <p><strong>响应：</strong>返回文件二进制数据</p>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/public/upload/chunk - 分片上传</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">token</td><td>API Token（必填）</td></tr>
+            </table>
+            <p><strong>表单字段：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">filename</td><td>文件名（必填）</td></tr>
+              <tr><td>chunk</td><td>当前分片编号，从0开始（必填）</td></tr>
+              <tr><td>chunks</td><td>总分片数（必填）</td></tr>
+              <tr><td>chunkData</td><td>分片文件数据（必填）</td></tr>
+            </table>
+            <p><strong>示例：</strong></p>
+            <pre><code>POST /api/public/upload/chunk?token=YOUR_TOKEN</code></pre>
+            <p><strong>响应（未完成）：</strong></p>
+            <pre><code>{
+  "chunk": 0,
+  "uploaded": 1,
+  "total": 5,
+  "message": "Chunk uploaded successfully"
+}</code></pre>
+            <p><strong>响应（完成）：</strong></p>
+            <pre><code>{
+  "id": 1,
+  "filename": "xxx.pdf",
+  "size": 1024,
+  "message": "File uploaded successfully"
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card api-card mb-3">
+          <div class="card-body">
+            <h5><span class="method post">POST</span> /api/public/upload/chunk/check - 分片上传检查</h5>
+            <hr>
+            <p><strong>URL参数：</strong></p>
+            <table class="table table-bordered param-table small">
+              <tr><td style="width: 120px;">token</td><td>API Token（必填）</td></tr>
+            </table>
+            <p><strong>请求体：</strong></p>
+            <pre><code>{
+  "filename": "test.pdf",
+  "chunk": 0,
+  "chunks": 5
+}</code></pre>
+            <p><strong>响应：</strong></p>
+            <pre><code>{
+  "uploadedChunks": [0, 1, 2],
+  "needUpload": true
+}</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="text-center text-muted mt-5 py-4">
+      <p>LPF 轻量级文件服务器 &copy; 2024</p>
+    </footer>
+  </div>
+</body>
+</html>

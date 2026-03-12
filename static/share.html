@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文件分享 - LPF</title>
+  <link href="/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/bootstrap-icons.css">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .share-card {
+      background: var(--surface);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    .share-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      padding: 30px;
+    }
+    .share-header h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .share-header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    .share-body {
+      padding: 30px;
+    }
+    .file-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: var(--bg);
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+    .file-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(99, 102, 241, 0.1);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+    .file-details {
+      flex: 1;
+    }
+    .file-name {
+      font-weight: 600;
+      color: var(--text);
+      word-break: break-all;
+    }
+    .file-size {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .btn-download {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-download:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+    }
+    .share-meta {
+      display: flex;
+      gap: 20px;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .share-meta-item {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .share-meta-item strong {
+      color: var(--text);
+    }
+    .alert {
+      padding: 14px 18px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .alert-danger {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+    .expired-badge {
+      background: var(--danger);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="share-card">
+    <div class="share-header">
+      <h1 id="shareTitle"><i class="bi bi-share"></i> 文件分享</h1>
+      <p id="shareDesc">查看分享的文件</p>
+    </div>
+    <div class="share-body">
+      <div id="errorAlert" class="alert alert-danger" style="display: none;"></div>
+
+      <!-- 密码输入表单 -->
+      <div id="passwordView" style="display: none;">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-lock me-2"></i>此分享需要密码访问</h5>
+            <div class="mb-3">
+              <input type="password" class="form-control" id="sharePassword" placeholder="请输入访问密码">
+            </div>
+            <button class="btn btn-primary" id="submitPasswordBtn">确认</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="contentView" style="display: none;">
+        <div class="file-list" id="fileList"></div>
+
+        <div class="share-meta">
+          <div class="share-meta-item">
+            <strong>分享时间：</strong><span id="createdAt"></span>
+          </div>
+          <div class="share-meta-item">
+            <strong>有效期：</strong><span id="expireInfo"></span>
+          </div>
+        </div>
+
+        <div style="margin-top: 24px; text-align: center;">
+          <button class="btn-download" id="downloadBtn">
+            <i class="bi bi-download me-2"></i>下载全部
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = window.location.pathname.split('/').pop();
+
+    function formatSize(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function getFileIcon(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const icons = {
+        'jpg': 'bi-file-image', 'jpeg': 'bi-file-image', 'png': 'bi-file-image', 'gif': 'bi-file-image',
+        'pdf': 'bi-file-pdf', 'doc': 'bi-file-word', 'docx': 'bi-file-word',
+        'xls': 'bi-file-excel', 'xlsx': 'bi-file-excel',
+        'zip': 'bi-file-zip', 'rar': 'bi-file-archive', '7z': 'bi-file-archive',
+        'mp3': 'bi-file-music', 'wav': 'bi-file-music',
+        'mp4': 'bi-file-video', 'mov': 'bi-file-video', 'avi': 'bi-file-video',
+        'txt': 'bi-file-text', 'md': 'bi-file-text'
+      };
+      return icons[ext] || 'bi-file-earmark';
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      return date.toLocaleString('zh-CN');
+    }
+
+    let currentPassword = '';
+
+    async function loadShare(password = '') {
+      try {
+        const url = password ? `/api/share/${token}?password=${encodeURIComponent(password)}` : `/api/share/${token}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (data.requiresPassword) {
+            if (data.wrongPassword) {
+              showPasswordForm('密码错误，请重新输入');
+            } else {
+              showPasswordForm();
+            }
+            return;
+          }
+          showError(data.error || 'Failed to load share');
+          return;
+        }
+
+        currentPassword = password;
+        showContent(data);
+
+      } catch (err) {
+        showError('Network error, please refresh the page');
+      }
+    }
+
+    function showPasswordForm(errorMsg = '') {
+      document.getElementById('passwordView').style.display = 'block';
+      document.getElementById('contentView').style.display = 'none';
+
+      // 清除之前的错误提示和密码
+      const oldError = document.getElementById('passwordError');
+      if (oldError) oldError.remove();
+      document.getElementById('sharePassword').value = '';
+
+      if (errorMsg) {
+        const div = document.createElement('div');
+        div.id = 'passwordError';
+        div.className = 'alert alert-danger mt-2';
+        div.style.display = 'block';
+        div.textContent = errorMsg;
+        document.getElementById('sharePassword').parentNode.appendChild(div);
+      }
+    }
+
+    function showContent(data) {
+      document.getElementById('passwordView').style.display = 'none';
+      document.getElementById('contentView').style.display = 'block';
+
+      // 显示分享信息
+      document.getElementById('shareTitle').textContent = data.title || '文件分享';
+      document.getElementById('createdAt').textContent = formatDate(data.created_at);
+
+      if (data.type === 'permanent') {
+        document.getElementById('expireInfo').textContent = '永久有效';
+      } else if (data.expires_at) {
+        document.getElementById('expireInfo').textContent = formatDate(data.expires_at);
+      }
+
+      // 显示文件列表
+      const fileList = document.getElementById('fileList');
+      fileList.innerHTML = data.files.map(file => `
+        <div class="file-item">
+          <div class="file-icon"><i class="bi ${getFileIcon(file.original_name)}"></i></div>
+          <div class="file-details">
+            <div class="file-name">${file.original_name}</div>
+            <div class="file-size">${formatSize(file.size)}</div>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('contentView').style.display = 'block';
+
+      // 下载按钮事件
+      document.getElementById('downloadBtn').addEventListener('click', () => {
+        const passwordParam = currentPassword ? `?password=${encodeURIComponent(currentPassword)}` : '';
+        window.location.href = `/api/share/${token}/download${passwordParam}`;
+      });
+    }
+
+    function showError(msg) {
+      document.getElementById('errorAlert').textContent = msg;
+      document.getElementById('errorAlert').style.display = 'block';
+      document.getElementById('contentView').style.display = 'none';
+    }
+
+    // 密码提交按钮事件
+    document.getElementById('submitPasswordBtn')?.addEventListener('click', () => {
+      const password = document.getElementById('sharePassword').value;
+      if (password) {
+        loadShare(password);
+      }
+    });
+
+    // 密码输入框回车事件
+    document.getElementById('sharePassword')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const password = document.getElementById('sharePassword').value;
+        if (password) {
+          loadShare(password);
+        }
+      }
+    });
+
+    loadShare();
+  </script>
+</body>
+</html>

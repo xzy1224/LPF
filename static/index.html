@@ -1,0 +1,2040 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LPF 文件服务器</title>
+  <link href="/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/bootstrap-icons.css">
+  <style>
+    /* 分页样式 */
+    .table-pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      padding: 20px 0 0;
+      border-top: 1px solid var(--border);
+      margin-top: 16px;
+      margin-bottom: 20px;
+    }
+    .table-pagination .total-info {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .pagination-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .page-btn {
+      min-width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .page-btn:hover:not([disabled]) {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .page-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+    .page-btn[disabled] {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .page-size-select {
+      margin-left: 12px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--surface);
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --primary-light: #818cf8;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --sidebar-width: 240px;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.05);
+      --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    /* 加载页面 */
+    .loading-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 登录页面 */
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .login-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .login-logo i {
+      font-size: 42px;
+      color: var(--primary);
+    }
+
+    .login-logo h2 {
+      font-size: 22px;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+
+    .login-logo p {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .form-control, .form-select {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 14px;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    /* 自定义下拉箭头 */
+    .form-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 12px;
+      padding-right: 36px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      padding: 10px 20px;
+      font-weight: 500;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      border-color: var(--primary-dark);
+    }
+
+    /* 布局 */
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* 右侧上传任务栏 */
+    .right-sidebar {
+      width: 300px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100vh;
+      z-index: 100;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+
+    .right-sidebar.show {
+      transform: translateX(0);
+    }
+
+    .right-sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .right-sidebar-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .right-sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .upload-task-item {
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 10px;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .upload-task-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .upload-task-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .upload-task-icon.uploading {
+      background: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+    }
+
+    .upload-task-icon.success {
+      background: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+    }
+
+    .upload-task-icon.error {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+    }
+
+    .upload-task-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .upload-task-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .upload-task-size {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .upload-task-time {
+      margin-left: 8px;
+      color: #6c757d;
+    }
+
+    .upload-task-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .upload-task-item:hover .upload-task-close {
+      opacity: 1;
+    }
+
+    .upload-task-close:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .upload-task-progress {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .upload-task-progress-bar {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .upload-task-progress-bar.success {
+      background: var(--success);
+    }
+
+    .upload-task-status {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .upload-task-status.success {
+      color: var(--success);
+    }
+
+    .upload-task-status.error {
+      color: var(--danger);
+    }
+
+    .upload-tasks-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .upload-tasks-empty i {
+      font-size: 40px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    /* 展开右侧栏按钮 */
+    .toggle-right-sidebar {
+      position: fixed;
+      top: 50%;
+      right: 0;
+      transform: translateY(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-right: none;
+      border-radius: 8px 0 0 8px;
+      padding: 12px 8px;
+      cursor: pointer;
+      z-index: 99;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+
+    .toggle-right-sidebar:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .toggle-right-sidebar .badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: var(--danger);
+      color: white;
+      font-size: 10px;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .main-content.with-right-sidebar {
+      margin-right: 300px;
+    }
+
+    /* 侧边栏 */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .sidebar-brand i {
+      font-size: 28px;
+      color: var(--primary);
+    }
+
+    .sidebar-brand span {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 12px;
+    }
+
+    .nav-item {
+      margin-bottom: 4px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .nav-link i {
+      font-size: 18px;
+    }
+
+    .nav-link:hover {
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .nav-link.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-radius: var(--radius);
+      background: var(--bg);
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .user-details {
+      flex: 1;
+    }
+
+    .user-name {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .user-role {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .btn-logout {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn-logout:hover {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    /* 主内容 */
+    .main-content {
+      flex: 1;
+      margin-left: var(--sidebar-width);
+      min-height: 100vh;
+    }
+
+    .page-header {
+      background: var(--surface);
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .page-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .page-body {
+      padding: 20px 24px;
+    }
+
+    /* 页面 */
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    /* 工具栏 */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      position: relative;
+      flex: 1;
+      min-width: 200px;
+      max-width: 400px;
+    }
+
+    .search-box i {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+
+    .search-box input {
+      padding-left: 36px;
+      padding-right: 80px;
+    }
+
+    .search-box .btn-search {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 6px 14px;
+      font-size: 13px;
+      z-index: 1;
+    }
+
+    /* 文件夹分类 */
+    .folder-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .folder-tab {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: white;
+      color: var(--text-muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .folder-tab:hover {
+      border-color: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .folder-tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    /* 表格 */
+    .table-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      background: var(--bg);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .data-table tr:hover {
+      background: var(--bg);
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .file-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .file-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .file-icon.image { background: #dbeafe; color: #3b82f6; }
+    .file-icon.pdf { background: #fee2e2; color: #ef4444; }
+    .file-icon.doc { background: #dbeafe; color: #2563eb; }
+    .file-icon.excel { background: #dcfce7; color: #16a34a; }
+    .file-icon.video { background: #fce7f3; color: #db2777; }
+    .file-icon.audio { background: #fef3c7; color: #d97706; }
+    .file-icon.zip { background: #e0e7ff; color: #4f46e5; }
+    .file-icon.default { background: #f1f5f9; color: #64748b; }
+
+    .file-name {
+      font-weight: 500;
+    }
+
+    .token-value {
+      font-family: monospace;
+      font-size: 12px;
+      background: var(--bg);
+      padding: 4px 8px;
+      border-radius: 4px;
+      word-break: break-all;
+    }
+
+    .badge {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 13px;
+    }
+
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 9999;
+    }
+
+    .toast-item {
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 12px 16px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      animation: slideIn 0.3s ease, fadeOut 0.3s ease 3.7s forwards;
+      min-width: 240px;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    .toast-item.success { border-left: 3px solid var(--success); }
+    .toast-item.error { border-left: 3px solid var(--danger); }
+    .toast-item.warning { border-left: 3px solid var(--warning); }
+
+    .toast-item i { font-size: 18px; }
+    .toast-item.success i { color: var(--success); }
+    .toast-item.error i { color: var(--danger); }
+    .toast-item.warning i { color: var(--warning); }
+
+    /* 模态框 */
+    .modal-content {
+      border: none;
+      border-radius: 12px;
+    }
+
+    .modal-header {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+    }
+
+    .modal-title {
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-footer {
+      border-top: 1px solid var(--border);
+      padding: 14px 20px;
+    }
+
+    /* 进度条 */
+    .progress {
+      height: 8px;
+      border-radius: 4px;
+      background: var(--border);
+    }
+
+    .progress-bar {
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+    }
+
+    /* 个人中心 */
+    .profile-header {
+      background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 100%);
+      border-radius: var(--radius);
+      padding: 32px;
+      color: white;
+      margin-bottom: 24px;
+    }
+
+    .profile-avatar-lg {
+      width: 80px;
+      height: 80px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin-bottom: 16px;
+    }
+
+    .profile-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-item {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-item i {
+      font-size: 28px;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    .stat-item h3 {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .stat-item p {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin: 0;
+    }
+
+    /* 空状态 */
+    .empty-state {
+      text-align: center;
+      padding: 48px;
+      color: var(--text-muted);
+    }
+
+    .empty-state i {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      .main-content {
+        margin-left: 0;
+      }
+      .profile-stats {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+
+  /* 文件选择列表样式 */
+  .file-select-list {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    padding: 8px;
+  }
+
+  .file-select-list .form-check {
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    margin: 2px 0;
+  }
+
+  .file-select-list .form-check:hover {
+    background: var(--hover);
+  }
+
+  .file-select-list .form-check-label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+  }
+
+  .file-select-list .file-size {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-left: 8px;
+  }
+
+  /* 分享文件列表样式 */
+  .share-file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+    margin-bottom: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .share-file-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .share-file-item:hover {
+    background: var(--hover);
+  }
+
+  .share-file-item .file-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .share-file-item .file-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .share-file-item .file-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .share-file-item .file-size {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .share-file-item .form-check-input {
+    margin-top: 0;
+  }
+
+  /* 分享列表样式 */
+  .share-files-preview {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .share-file-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+
+  .share-file-more {
+    color: var(--primary);
+    font-weight: 500;
+  }
+  </style>
+</head>
+<body>
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- 加载页面 -->
+  <div id="loadingPage" class="loading-page">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <!-- 登录页 -->
+  <div id="loginPage" class="login-page">
+    <div class="login-card">
+      <div class="login-logo">
+        <i class="bi bi-cloud-arrow-up-fill"></i>
+        <h2>LPF 文件服务器</h2>
+        <p>轻量级高性能文件管理系统</p>
+      </div>
+      <form id="loginForm">
+        <div class="mb-3">
+          <input type="text" class="form-control" id="loginUsername" placeholder="用户名" required>
+        </div>
+        <div class="mb-4">
+          <input type="password" class="form-control" id="loginPassword" placeholder="密码" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-box-arrow-in-right me-2"></i>登录
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 主应用 -->
+  <div id="mainApp" style="display: none;">
+    <div class="app-layout">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <a href="/" class="sidebar-brand">
+            <i class="bi bi-cloud-arrow-up-fill"></i>
+            <span>LPF</span>
+          </a>
+        </div>
+        <nav class="sidebar-nav">
+          <div class="nav-item">
+            <a class="nav-link active" data-page="files">
+              <i class="bi bi-folder-fill"></i>
+              <span>文件管理</span>
+            </a>
+          </div>
+          <div class="nav-item">
+            <a class="nav-link" data-page="tokens">
+              <i class="bi bi-key-fill"></i>
+              <span>Token管理</span>
+            </a>
+          </div>
+          <div class="nav-item">
+            <a class="nav-link" data-page="collect">
+              <i class="bi bi-link-45deg"></i>
+              <span>文件收取</span>
+            </a>
+          </div>
+          <div class="nav-item">
+            <a class="nav-link" data-page="share">
+              <i class="bi bi-share-fill"></i>
+              <span>文件分享</span>
+            </a>
+          </div>
+          <div class="nav-item">
+            <a class="nav-link" data-page="profile">
+              <i class="bi bi-person-fill"></i>
+              <span>个人中心</span>
+            </a>
+          </div>
+          <div class="nav-item">
+            <a class="nav-link" data-page="apidocs">
+              <i class="bi bi-book-fill"></i>
+              <span>API文档</span>
+            </a>
+          </div>
+          <div class="nav-item">
+            <a class="nav-link" href="/openapi-docs" target="_blank">
+              <i class="bi bi-cloud-download-fill"></i>
+              <span>开放API</span>
+            </a>
+          </div>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="user-info">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <div class="user-details">
+              <div class="user-name" id="userName">Admin</div>
+              <div class="user-role">管理员</div>
+            </div>
+            <button class="btn-logout" id="logoutBtn" title="退出">
+              <i class="bi bi-box-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 主内容 -->
+      <main class="main-content">
+        <!-- 文件管理 -->
+        <div id="pageFiles" class="page">
+          <div class="page-header">
+            <h1 class="page-title">文件管理</h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+              <i class="bi bi-cloud-upload me-1"></i>上传文件
+            </button>
+          </div>
+          <div class="page-body">
+            <!-- 工具栏 -->
+            <div class="toolbar">
+              <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" class="form-control" id="searchInput" placeholder="搜索文件...">
+                <button class="btn btn-primary btn-sm btn-search" id="searchBtn">搜索</button>
+              </div>
+              <select class="form-select" id="sortSelect" style="width: auto;">
+                <option value="created_at">按上传时间</option>
+                <option value="size">按文件大小</option>
+                <option value="name">按文件名</option>
+              </select>
+              <select class="form-select" id="orderSelect" style="width: auto;">
+                <option value="desc">降序</option>
+                <option value="asc">升序</option>
+              </select>
+            </div>
+
+            <!-- 文件夹分类 -->
+            <div class="toolbar">
+              <div class="folder-tabs">
+                <button class="folder-tab active" data-folder="all">全部</button>
+                <button class="folder-tab" data-folder="today">今天</button>
+                <button class="folder-tab" data-folder="week">本周</button>
+                <button class="folder-tab" data-folder="month">本月</button>
+              </div>
+            </div>
+
+            <!-- 文件列表 -->
+            <div class="table-card">
+              <div class="toolbar" id="batchToolbar" style="display: none; justify-content: space-between; padding: 10px; background: var(--bg); border-radius: 8px; margin-bottom: 10px;">
+                <div>
+                  <span id="selectedCount" style="margin-right: 10px;">已选择 0 个文件</span>
+                </div>
+                <div>
+                  <button class="btn btn-primary btn-sm" id="batchDownloadBtn">
+                    <i class="bi bi-download me-1"></i>批量下载
+                  </button>
+                  <button class="btn btn-secondary btn-sm" id="batchShareBtn">
+                    <i class="bi bi-share me-1"></i>批量分享
+                  </button>
+                  <button class="btn btn-outline-secondary btn-sm" id="cancelSelectBtn">取消</button>
+                </div>
+              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="selectAllFiles"></th>
+                    <th>文件名</th>
+                    <th>大小</th>
+                    <th>上传者</th>
+                    <th>预览</th>
+                    <th>时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="filesTableBody">
+                </tbody>
+              </table>
+              <div id="filesPaginationContainer" class="table-pagination"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Token管理 -->
+        <div id="pageTokens" class="page">
+          <div class="page-header">
+            <h1 class="page-title">Token管理</h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#tokenModal">
+              <i class="bi bi-plus-lg me-1"></i>创建Token
+            </button>
+          </div>
+          <div class="page-body">
+            <div class="table-card">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>名称</th>
+                    <th>Token</th>
+                    <th>类型</th>
+                    <th>过期时间</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="tokensTableBody">
+                </tbody>
+              </table>
+              <div id="tokensPaginationContainer" class="table-pagination"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 文件收取 -->
+        <div id="pageCollect" class="page">
+          <div class="page-header">
+            <h1 class="page-title">文件收取</h1>
+            <button class="btn btn-primary" id="generateCollectLink">
+              <i class="bi bi-link-45deg me-1"></i>生成链接
+            </button>
+          </div>
+          <div class="page-body">
+            <div class="table-card">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>链接Token</th>
+                    <th>创建者</th>
+                    <th>状态</th>
+                    <th>上传时间</th>
+                    <th>上传文件名</th>
+                    <th>上传者IP</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="collectTableBody">
+                </tbody>
+              </table>
+              <div id="collectPaginationContainer" class="table-pagination"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 文件分享 -->
+        <div id="pageShare" class="page">
+          <div class="page-header">
+            <h1 class="page-title">文件分享</h1>
+            <button class="btn btn-primary" id="createShareBtn">
+              <i class="bi bi-share-fill me-1"></i>分享文件
+            </button>
+          </div>
+          <div class="page-body">
+            <!-- 工具栏 -->
+            <div class="toolbar">
+              <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" class="form-control" id="shareSearchInput" placeholder="搜索分享标题...">
+                <button class="btn btn-primary btn-sm btn-search" id="searchShareBtn">搜索</button>
+              </div>
+              <select class="form-select" id="shareTypeFilter" style="width: auto;">
+                <option value="">全部类型</option>
+                <option value="permanent">永久</option>
+                <option value="temporary">临时</option>
+              </select>
+              <select class="form-select" id="shareSortSelect" style="width: auto;">
+                <option value="created_desc">最新优先</option>
+                <option value="created_asc">最旧优先</option>
+              </select>
+            </div>
+
+            <div class="table-card">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>标题</th>
+                    <th>类型</th>
+                    <th>密码</th>
+                    <th>有效期</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="shareTableBody">
+                </tbody>
+              </table>
+              <div id="sharesPaginationContainer" class="table-pagination"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 个人中心 -->
+        <div id="pageProfile" class="page">
+          <div class="page-header">
+            <h1 class="page-title">个人中心</h1>
+          </div>
+          <div class="page-body">
+            <div class="profile-header">
+              <div class="profile-avatar-lg">
+                <i class="bi bi-person-fill"></i>
+              </div>
+              <h2 id="profileUsername">Admin</h2>
+              <p class="mb-0 opacity-75">管理员账号</p>
+            </div>
+
+            <div class="profile-stats">
+              <div class="stat-item">
+                <i class="bi bi-folder-fill"></i>
+                <h3 id="statFileCount">0</h3>
+                <p>文件总数</p>
+              </div>
+              <div class="stat-item">
+                <i class="bi bi-hdd-fill"></i>
+                <h3 id="statStorage">0 B</h3>
+                <p>存储空间</p>
+              </div>
+              <div class="stat-item">
+                <i class="bi bi-key-fill"></i>
+                <h3 id="statTokenCount">0</h3>
+                <p>Token数量</p>
+              </div>
+            </div>
+
+            <div class="table-card">
+              <div class="card-header" style="padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--bg);">
+                <h5 class="mb-0" style="font-size: 14px; font-weight: 600;">
+                  <i class="bi bi-shield-lock me-2"></i>修改密码
+                </h5>
+              </div>
+              <div class="card-body" style="padding: 20px;">
+                <form id="changePasswordForm" style="max-width: 400px;">
+                  <div class="mb-3">
+                    <label class="form-label">当前密码</label>
+                    <input type="password" class="form-control" id="oldPassword" required>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">新密码</label>
+                    <input type="password" class="form-control" id="newPassword" required minlength="6">
+                  </div>
+                  <div class="mb-4">
+                    <label class="form-label">确认新密码</label>
+                    <input type="password" class="form-control" id="confirmPassword" required>
+                  </div>
+                  <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-1"></i>修改密码
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- API文档 -->
+        <div id="pageApidocs" class="page">
+          <div class="page-header">
+            <h1 class="page-title">API文档</h1>
+          </div>
+          <div class="page-body">
+            <iframe src="/api-docs" style="width: 100%; height: calc(100vh - 180px); border: none;"></iframe>
+          </div>
+        </div>
+      </main>
+
+      <!-- 右侧上传任务栏 -->
+        <div id="pageOpenapi" class="page">
+          <div class="page-header">
+            <h1 class="page-title">开放API文档</h1>
+            <button class="btn btn-primary btn-sm" onclick="generateOpenApiShareLink()">
+              <i class="bi bi-share me-1"></i>生成分享链接
+            </button>
+          </div>
+          <div class="page-body">
+            <!-- 服务器信息 -->
+            <div class="alert alert-success mb-4" id="serverInfoAlert">
+              <i class="bi bi-server me-2"></i>
+              <strong>服务器地址：</strong>
+              <span id="serverAddress">加载中...</span>
+              <button class="btn btn-sm btn-outline-success ms-2" onclick="copyServerAddress()">
+                <i class="bi bi-clipboard"></i>复制
+              </button>
+            </div>
+
+            <div class="alert alert-info mb-4">
+              <i class="bi bi-info-circle me-2"></i>
+              <strong>认证方式：</strong>所有开放API通过URL参数传递Token：<code>?token=YOUR_TOKEN</code>
+            </div>
+
+            <!-- 目录 -->
+            <div class="table-card mb-4">
+              <div class="card-header" style="padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--bg);">
+                <h5 class="mb-0" style="font-size: 14px; font-weight: 600;"><i class="bi bi-list-ul me-2"></i>接口目录</h5>
+              </div>
+              <div class="card-body" style="padding: 15px;">
+                <ul class="mb-0" style="columns: 2; column-gap: 30px;">
+                  <li><a href="#api-upload">文件上传</a></li>
+                  <li><a href="#api-multiple">批量上传</a></li>
+                  <li><a href="#api-chunk">分片上传</a></li>
+                  <li><a href="#api-chunk-check">分片检查</a></li>
+                  <li><a href="#api-files">文件列表</a></li>
+                  <li><a href="#api-preview">文件预览</a></li>
+                  <li><a href="#api-download">文件下载</a></li>
+                  <li><a href="#api-delete">文件删除</a></li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- 文件上传 -->
+            <h5 id="api-upload" class="mt-4 mb-3"><i class="bi bi-folder-fill me-2"></i>一、文件上传</h5>
+            <div class="table-card mb-4">
+              <table class="table table-bordered mb-0" style="background: var(--card-bg);">
+                <tr>
+                  <td style="width: 100px;"><span class="method post">POST</span></td>
+                  <td><code>/api/public/upload</code></td>
+                </tr>
+                <tr>
+                  <td>请求头</td>
+                  <td><code>Content-Type: multipart/form-data</code></td>
+                </tr>
+                <tr>
+                  <td>URL参数</td>
+                  <td><code>token</code> - API Token（必填）</td>
+                </tr>
+                <tr>
+                  <td>表单字段</td>
+                  <td><code>file</code> - 要上传的文件（必填）</td>
+                </tr>
+                <tr>
+                  <td>请求示例</td>
+                  <td><pre class="mb-0"><code>POST /api/public/upload?token=YOUR_TOKEN
+Content-Type: multipart/form-data
+
+file: (二进制文件数据)</code></pre></td>
+                </tr>
+                <tr>
+                  <td>成功响应</td>
+                  <td><pre class="mb-0"><code>{
+  "id": 1,
+  "filename": "xxx.pdf",
+  "original_name": "test.pdf",
+  "size": 1024,
+  "message": "File uploaded successfully"
+}</code></pre></td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- 批量上传 -->
+            <h5 id="api-multiple" class="mt-4 mb-3"><i class="bi bi-cloud-upload-fill me-2"></i>二、批量上传</h5>
+            <div class="table-card mb-4">
+              <table class="table table-bordered mb-0" style="background: var(--card-bg);">
+                <tr>
+                  <td style="width: 100px;"><span class="method post">POST</span></td>
+                  <td><code>/api/public/upload/multiple</code></td>
+                </tr>
+                <tr>
+                  <td>请求头</td>
+                  <td><code>Content-Type: multipart/form-data</code></td>
+                </tr>
+                <tr>
+                  <td>URL参数</td>
+                  <td><code>token</code> - API Token（必填）</td>
+                </tr>
+                <tr>
+                  <td>表单字段</td>
+                  <td><code>files</code> - 文件数组（最多50个，必填）</td>
+                </tr>
+                <tr>
+                  <td>请求示例</td>
+                  <td><pre class="mb-0"><code>POST /api/public/upload/multiple?token=YOUR_TOKEN
+Content-Type: multipart/form-data
+
+files: file1.txt
+files: file2.txt
+files: file3.txt</code></pre></td>
+                </tr>
+                <tr>
+                  <td>成功响应</td>
+                  <td><pre class="mb-0"><code>{
+  "total": 3,
+  "files": [
+    { "id": 1, "filename": "xxx1.txt", "original_name": "file1.txt", "size": 100 },
+    { "id": 2, "filename": "xxx2.txt", "original_name": "file2.txt", "size": 200 },
+    { "id": 3, "filename": "xxx3.txt", "original_name": "file3.txt", "size": 300 }
+  ],
+  "message": "3 files uploaded successfully"
+}</code></pre></td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- 分片上传详细流程 -->
+            <h5 id="api-chunk" class="mt-4 mb-3"><i class="bi bi-layers-fill me-2"></i>三、分片上传（详细流程）</h5>
+            <div class="alert alert-primary mb-3">
+              <i class="bi bi-lightbulb me-2"></i>
+              <strong>适用场景：</strong>大文件上传（如视频、大型压缩包），支持断点续传
+            </div>
+
+            <div class="table-card mb-4">
+              <div class="card-header" style="padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--bg);">
+                <h5 class="mb-0" style="font-size: 14px; font-weight: 600;">分片上传完整流程（小白教程）</h5>
+              </div>
+              <div class="card-body" style="padding: 20px;">
+                <h6 class="text-primary mb-3">第一步：计算文件分片</h6>
+                <p>假设要上传一个 <strong>100MB</strong> 的视频文件，每个分片 <strong>1MB</strong>，则需要分成 <strong>100</strong> 个分片。</p>
+
+                <h6 class="text-primary mb-3 mt-4">第二步：逐个上传分片</h6>
+                <p>使用以下接口循环上传每个分片：</p>
+                <table class="table table-bordered table-sm mb-3">
+                  <tr>
+                    <td style="width: 100px;"><span class="method post">POST</span></td>
+                    <td><code>/api/public/upload/chunk</code></td>
+                  </tr>
+                  <tr>
+                    <td>URL参数</td>
+                    <td><code>token</code> - API Token</td>
+                  </tr>
+                  <tr>
+                    <td>表单字段</td>
+                    <td>
+                      <ul class="mb-0 small">
+                        <li><code>filename</code> - 最终文件名（如 video.mp4）</li>
+                        <li><code>chunk</code> - 当前分片编号（0, 1, 2, ..., 99）</li>
+                        <li><code>chunks</code> - 总分片数（100）</li>
+                        <li><code>chunkData</code> - 当前分片的二进制数据</li>
+                      </ul>
+                    </td>
+                  </tr>
+                </table>
+
+                <h6 class="text-primary mb-3 mt-4">第三步：上传示例（Python代码）</h6>
+                <pre class="bg-dark text-light p-3 rounded"><code>import requests
+import os
+
+BASE_URL = "http://你的IP:8188"
+TOKEN = "你的TOKEN"
+
+def upload_large_file(file_path, chunk_size=1024*1024):
+    """分片上传大文件"""
+    filename = os.path.basename(file_path)
+    file_size = os.path.getsize(file_path)
+    total_chunks = (file_size + chunk_size - 1) // chunk_size
+
+    print(f"文件大小: {file_size} bytes, 分片数: {total_chunks}")
+
+    with open(file_path, 'rb') as f:
+        for chunk_index in range(total_chunks):
+            chunk_data = f.read(chunk_size)
+
+            # 上传当前分片
+            files = {'chunkData': ('chunk', chunk_data)}
+            data = {
+                'filename': filename,
+                'chunk': str(chunk_index),
+                'chunks': str(total_chunks)
+            }
+
+            response = requests.post(
+                f"{BASE_URL}/api/public/upload/chunk?token={TOKEN}",
+                files=files,
+                data=data
+            )
+
+            result = response.json()
+            print(f"上传分片 {chunk_index+1}/{total_chunks}: {result.get('message', result)}")
+
+            # 如果返回了id，说明上传完成
+            if 'id' in result:
+                print(f"上传完成! 文件ID: {result['id']}")
+                return result['id']
+
+    return None
+
+# 使用示例
+upload_large_file("D:/video.mp4")</code></pre>
+
+                <h6 class="text-primary mb-3 mt-4">第三步：上传示例（JavaScript/Node.js代码）</h6>
+                <pre class="bg-dark text-light p-3 rounded"><code>const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+
+const BASE_URL = 'http://你的IP:8188';
+const TOKEN = '你的TOKEN';
+
+async function uploadLargeFile(filePath, chunkSize = 1024 * 1024) {
+  const filename = path.basename(filePath);
+  const fileSize = fs.statSync(filePath).size;
+  const totalChunks = Math.ceil(fileSize / chunkSize);
+
+  console.log(`文件大小: ${fileSize} bytes, 分片数: ${totalChunks}`);
+
+  const fileBuffer = fs.readFileSync(filePath);
+
+  for (let chunk = 0; chunk < totalChunks; chunk++) {
+    const start = chunk * chunkSize;
+    const end = Math.min(start + chunkSize, fileSize);
+    const chunkData = fileBuffer.slice(start, end);
+
+    const formData = new FormData();
+    formData.append('filename', filename);
+    formData.append('chunk', chunk.toString());
+    formData.append('chunks', totalChunks.toString());
+    formData.append('chunkData', new Blob([chunkData]), 'chunk');
+
+    const response = await axios.post(
+      `${BASE_URL}/api/public/upload/chunk?token=${TOKEN}`,
+      formData
+    );
+
+    console.log(`上传分片 ${chunk + 1}/${totalChunks}: ${response.data.message || response.data}`);
+
+    if (response.data.id) {
+      console.log(`上传完成! 文件ID: ${response.data.id}`);
+      return response.data.id;
+    }
+  }
+}
+
+// 使用示例
+uploadLargeFile('D:/video.mp4');</code></pre>
+
+                <h6 class="text-primary mb-3 mt-4">第四步：分片上传响应说明</h6>
+                <table class="table table-bordered table-sm">
+                  <tr>
+                    <td>上传中响应</td>
+                    <td><pre class="mb-0"><code>{
+  "chunk": 0,
+  "uploaded": 1,
+  "total": 100,
+  "message": "Chunk uploaded successfully"
+}</code></pre></td>
+                  </tr>
+                  <tr>
+                    <td>上传完成响应</td>
+                    <td><pre class="mb-0"><code>{
+  "id": 1,
+  "filename": "video.mp4",
+  "size": 104857600,
+  "message": "File uploaded successfully"
+}</code></pre></td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+
+            <!-- 分片检查 -->
+            <h5 id="api-chunk-check" class="mt-4 mb-3"><i class="bi bi-check-circle-fill me-2"></i>四、分片上传检查（断点续传）</h5>
+            <div class="table-card mb-4">
+              <table class="table table-bordered mb-0" style="background: var(--card-bg);">
+                <tr>
+                  <td style="width: 100px;"><span class="method post">POST</span></td>
+                  <td><code>/api/public/upload/chunk/check</code></td>
+                </tr>
+                <tr>
+                  <td>请求头</td>
+                  <td><code>Content-Type: application/json</code></td>
+                </tr>
+                <tr>
+                  <td>URL参数</td>
+                  <td><code>token</code> - API Token（必填）</td>
+                </tr>
+                <tr>
+                  <td>请求体</td>
+                  <td><pre class="mb-0"><code>{
+  "filename": "video.mp4",
+  "chunk": 0,
+  "chunks": 100
+}</code></pre></td>
+                </tr>
+                <tr>
+                  <td>响应</td>
+                  <td><pre class="mb-0"><code>{
+  "uploadedChunks": [0, 1, 2],
+  "needUpload": true
+}</code></pre>
+                  <p class="small text-muted mt-1">uploadedChunks: 已上传的分片编号数组<br>needUpload: 当前分片是否需要上传</p>
+                </td>
+                </tr>
+                <tr>
+                  <td>使用场景</td>
+                  <td>上传中断后，使用此接口检查已上传的分片，只上传未完成的部分（断点续传）</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- 文件列表 -->
+            <h5 id="api-files" class="mt-4 mb-3"><i class="bi bi-list-ul me-2"></i>五、文件列表查询</h5>
+            <div class="table-card mb-4">
+              <table class="table table-bordered mb-0" style="background: var(--card-bg);">
+                <tr>
+                  <td style="width: 100px;"><span class="method get">GET</span></td>
+                  <td><code>/api/public/files</code></td>
+                </tr>
+                <tr>
+                  <td>URL参数</td>
+                  <td>
+                    <ul class="mb-0 small">
+                      <li><code>token</code> - API Token（必填）</li>
+                      <li><code>page</code> - 页码（可选，默认1）</li>
+                      <li><code>pageSize</code> - 每页数量（可选，默认20）</li>
+                    </ul>
+                  </td>
+                </tr>
+                <tr>
+                  <td>请求示例</td>
+                  <td><code>GET /api/public/files?token=YOUR_TOKEN&page=1&pageSize=10</code></td>
+                </tr>
+                <tr>
+                  <td>响应</td>
+                  <td><pre class="mb-0"><code>{
+  "list": [
+    {
+      "id": 1,
+      "filename": "xxx.pdf",
+      "original_name": "test.pdf",
+      "size": 1024,
+      "created_at": "2024-01-01",
+      "is_preview_open": 1
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "pageSize": 20,
+  "totalPages": 5
+}</code></pre></td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- 文件预览 -->
+            <h5 id="api-preview" class="mt-4 mb-3"><i class="bi bi-eye-fill me-2"></i>六、文件预览</h5>
+            <div class="table-card mb-4">
+              <table class="table table-bordered mb-0" style="background: var(--card-bg);">
+                <tr>
+                  <td style="width: 100px;"><span class="method get">GET</span></td>
+                  <td><code>/api/public/preview/:id</code></td>
+                </tr>
+                <tr>
+                  <td>URL参数</td>
+                  <td>
+                    <ul class="mb-0 small">
+                      <li><code>token</code> - API Token（必填）</li>
+                      <li><code>id</code> - 文件ID（路径参数，必填）</li>
+                    </ul>
+                  </td>
+                </tr>
+                <tr>
+                  <td>请求示例</td>
+                  <td><code>GET /api/public/preview/1?token=YOUR_TOKEN</code></td>
+                </tr>
+                <tr>
+                  <td>说明</td>
+                  <td>返回文件内容，可在浏览器中直接预览。支持图片、PDF、视频、音频等格式。<br>注意：需要在文件管理中开启"开放预览"开关。</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- 文件下载 -->
+            <h5 id="api-download" class="mt-4 mb-3"><i class="bi bi-download me-2"></i>七、文件下载</h5>
+            <div class="table-card mb-4">
+              <table class="table table-bordered mb-0" style="background: var(--card-bg);">
+                <tr>
+                  <td style="width: 100px;"><span class="method get">GET</span></td>
+                  <td><code>/api/public/download/:id</code></td>
+                </tr>
+                <tr>
+                  <td>URL参数</td>
+                  <td>
+                    <ul class="mb-0 small">
+                      <li><code>token</code> - API Token（必填）</li>
+                      <li><code>id</code> - 文件ID（路径参数，必填）</li>
+                    </ul>
+                  </td>
+                </tr>
+                <tr>
+                  <td>请求示例</td>
+                  <td><code>GET /api/public/download/1?token=YOUR_TOKEN</code></td>
+                </tr>
+                <tr>
+                  <td>说明</td>
+                  <td>返回文件下载（Content-Disposition: attachment）</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- 文件删除 -->
+            <h5 id="api-delete" class="mt-4 mb-3"><i class="bi bi-trash-fill me-2"></i>八、文件删除</h5>
+            <div class="table-card mb-4">
+              <table class="table table-bordered mb-0" style="background: var(--card-bg);">
+                <tr>
+                  <td style="width: 100px;"><span class="method delete">DELETE</span></td>
+                  <td><code>/api/public/files/:id</code></td>
+                </tr>
+                <tr>
+                  <td>URL参数</td>
+                  <td>
+                    <ul class="mb-0 small">
+                      <li><code>token</code> - API Token（必填）</li>
+                      <li><code>id</code> - 文件ID（路径参数，必填）</li>
+                    </ul>
+                  </td>
+                </tr>
+                <tr>
+                  <td>请求示例</td>
+                  <td><code>DELETE /api/public/files/1?token=YOUR_TOKEN</code></td>
+                </tr>
+                <tr>
+                  <td>响应</td>
+                  <td><pre class="mb-0"><code>{ "message": "File deleted successfully" }</code></pre></td>
+                </tr>
+              </table>
+            </div>
+
+            <div class="alert alert-warning mt-4">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              <strong>注意事项：</strong>
+              <ul class="mb-0 mt-2">
+                <li>使用Token管理中创建的有效Token</li>
+                <li>确保Token未过期且未禁用</li>
+                <li>预览功能需要在文件管理中开启"开放预览"开关</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- 右侧上传任务栏 -->
+      <aside class="right-sidebar" id="rightSidebar">
+        <div class="right-sidebar-header">
+          <span class="right-sidebar-title"><i class="bi bi-arrow-down-circle me-2"></i>上传任务</span>
+          <button class="btn-close" onclick="toggleRightSidebar()"></button>
+        </div>
+        <div class="right-sidebar-body" id="uploadTasksContainer">
+          <div class="upload-tasks-empty" id="uploadTasksEmpty">
+            <i class="bi bi-cloud-arrow-up"></i>
+            <p>暂无上传任务</p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 展开右侧栏按钮 -->
+      <button class="toggle-right-sidebar" id="toggleRightSidebarBtn" onclick="toggleRightSidebar()">
+        <i class="bi bi-list-ul"></i>
+        <span class="badge" id="uploadTaskBadge" style="display: none;">0</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 上传模态框 -->
+  <div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-cloud-upload me-2"></i>上传文件</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="file" class="form-control" id="fileInput" multiple>
+          <div class="progress mt-3" id="uploadProgress" style="display: none;">
+            <div class="progress-bar" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="uploadBtn">上传</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Token模态框 -->
+  <div class="modal fade" id="tokenModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-plus-lg me-2"></i>创建Token</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">名称</label>
+            <input type="text" class="form-control" id="tokenName" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">类型</label>
+            <select class="form-select" id="tokenType">
+              <option value="permanent">永久</option>
+              <option value="temporary">临时</option>
+            </select>
+          </div>
+          <div class="mb-3" id="expiresAtContainer" style="display: none;">
+            <label class="form-label">过期时间</label>
+            <input type="datetime-local" class="form-control" id="tokenExpiresAt">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="createTokenBtn">创建</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分享模态框 -->
+  <div class="modal fade" id="shareModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-share me-2"></i>分享文件</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">分享标题 <span class="text-muted fw-normal">(可选)</span></label>
+            <input type="text" class="form-control" id="shareTitle" placeholder="输入分享标题，方便识别">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">选择文件 <span class="text-muted fw-normal">(可多选)</span></label>
+            <div id="shareFileList" class="file-select-list" style="max-height: 180px; overflow-y: auto;">
+              <div class="text-center text-muted py-4">请先在文件管理中上传文件</div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">分享类型</label>
+              <select class="form-select" id="shareType">
+                <option value="permanent">永久有效</option>
+                <option value="temporary">临时分享</option>
+              </select>
+            </div>
+            <div class="col-md-6" id="shareExpiresContainer" style="display: none;">
+              <label class="form-label fw-semibold">过期时间</label>
+              <input type="datetime-local" class="form-control" id="shareExpiresAt">
+            </div>
+          </div>
+
+          <div class="mb-3 mt-3">
+            <label class="form-label fw-semibold">访问密码 <span class="text-muted fw-normal">(可选)</span></label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="sharePassword" placeholder="留空则无需密码">
+              <button class="btn btn-outline-secondary" type="button" id="generateSharePassword" title="生成随机密码">
+                <i class="bi bi-arrow-repeat"></i> 生成
+              </button>
+            </div>
+            <div class="form-text">设置密码后，访问者需要输入密码才能查看分享内容</div>
+          </div>
+
+          <div class="alert alert-info mb-0 mt-3" id="shareLinkContainer" style="display: none;">
+            <label class="form-label fw-semibold mb-2">分享链接</label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="shareLink" readonly>
+              <button class="btn btn-primary" type="button" onclick="document.getElementById('shareLink').select();document.execCommand('copy');">
+                <i class="bi bi-clipboard"></i> 复制
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="createShareBtn2">
+            <i class="bi bi-share me-1"></i>创建分享
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑分享模态框 -->
+  <div class="modal fade" id="editShareModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>编辑分享</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">分享标题</label>
+            <input type="text" class="form-control" id="editShareTitle" placeholder="输入分享标题">
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">分享类型</label>
+              <select class="form-select" id="editShareType">
+                <option value="permanent">永久有效</option>
+                <option value="temporary">临时分享</option>
+              </select>
+            </div>
+            <div class="col-md-6" id="editShareExpiresContainer">
+              <label class="form-label fw-semibold">过期时间</label>
+              <input type="datetime-local" class="form-control" id="editShareExpiresAt">
+            </div>
+          </div>
+
+          <div class="mb-3 mt-3">
+            <label class="form-label fw-semibold">访问密码 <span class="text-muted fw-normal">(可选)</span></label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="editSharePassword" placeholder="留空则保持原密码">
+              <button class="btn btn-outline-secondary" type="button" id="generateEditSharePassword" title="生成随机密码">
+                <i class="bi bi-arrow-repeat"></i> 生成
+              </button>
+            </div>
+            <div class="form-text">留空则保持原有密码设置，输入新密码将覆盖原密码</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="saveShareBtn">
+            <i class="bi bi-check-lg me-1"></i>保存修改
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 预览模态框 -->
+  <div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="previewFileName">预览</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-0" id="previewContent">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" id="copyPreviewLinkBtn">
+            <i class="bi bi-clipboard me-1"></i>复制链接
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/bootstrap.bundle.min.js"></script>
+  <script src="/js/app.js?v=202603122"></script>
+</body>
+</html>
