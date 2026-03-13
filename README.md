@@ -3,7 +3,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/LPF-Lightweight%20File%20Server-green?style=for-the-badge" alt="LPF">
   <img src="https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square" alt="Node.js">
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License">
 </p>
 
 ## 简介
@@ -22,19 +21,19 @@ LPF (Lightweight File) 是一款**轻量、高性能、易部署**的 Web 文件
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      LPF 架构图                             │
+│                      LPF 架构图                              │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
-│   │   前端界面   │    │  Express    │    │   SQLite    │   │
-│   │  (Bootstrap │◄──►│   Web服务器  │◄──►│  嵌入式数据库 │   │
-│   │   5 + JS)   │    │   (Node.js) │    │   (sql.js)   │   │
-│   └─────────────┘    └─────────────┘    └─────────────┘   │
-│         │                                      │           │
-│         │         ┌─────────────┐            │           │
-│         └────────►│   Multer    │◄───────────┘           │
-│                   │  文件上传    │                         │
-│                   └─────────────┘                         │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│   │   前端界面   │    │  Express    │    │   SQLite    │     │
+│   │  (Bootstrap │◄──►│   Web服务器  │◄──►│  嵌入式数据库│     │
+│   │   5 + JS)   │    │   (Node.js) │    │   (sql.js)  │     │
+│   └─────────────┘    └─────────────┘    └─────────────┘     │
+│         │                                    │              │
+│         │         ┌─────────────┐            │              │
+│         └────────►│   Multer    │◄───────────┘              │
+│                   │  文件上传    │                           │
+│                   └─────────────┘                           │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -80,7 +79,6 @@ LPF (Lightweight File) 是一款**轻量、高性能、易部署**的 Web 文件
 - [x] Token 启用/禁用
 - [x] Token 过期时间设置
 - [x] Token 删除
-- [x] Token 与用户绑定
 
 ### 文件收取
 - [x] 生成分享收取链接
@@ -101,7 +99,7 @@ LPF (Lightweight File) 是一款**轻量、高性能、易部署**的 Web 文件
 - [x] 分享文件下载 API
 
 ### 系统功能
-- [x] 用户登录/注册
+- [x] 用户登录
 - [x] 密码修改
 - [x] 个人中心（统计信息）
 - [x] 响应式设计（支持移动端）
@@ -225,7 +223,6 @@ LPF/
 | 接口 | 方法 | 说明 |
 |------|------|------|
 | `/api/auth/login` | POST | 用户登录 |
-| `/api/auth/register` | POST | 用户注册 |
 | `/api/auth/password` | PUT | 修改密码 |
 | `/api/auth/me` | GET | 获取当前用户信息 |
 
@@ -377,7 +374,6 @@ GET /api/share/download/:id?password=xxx
 |------|------|------|
 | 主页面 | `/` | 文件管理界面（需登录） |
 | 登录页 | `/login` | 用户登录 |
-| 注册页 | `/register` | 用户注册 |
 | API 文档 | `/api-docs` | 管理员 API 文档 |
 | 开放 API 文档 | `/openapi-docs` | 开放 API 文档（可公开访问） |
 | 收取页面 | `/collect/:token` | 文件收取页面 |
@@ -404,29 +400,7 @@ GET /api/share/download/:id?password=xxx
 
 ### Q: 上传的文件在哪里？
 
-上传的文件存储在 `static/uploads` 目录中。
-
-### Q: 为什么不能关闭 node 进程？
-
-**重要**：严禁使用 taskkill、pkill 等命令关闭 node 进程，否则可能导致数据丢失或程序异常。请使用提供的停止脚本正常关闭服务。
-
-### Q: 为什么每次重启不筹建数据库？
-
-**重要**：项目使用嵌入式 SQLite 数据库，数据库文件会在首次启动时自动创建。**不要在每次重启时删除或重新创建数据库文件**，否则会导致所有数据丢失。
-
-## 开发相关
-
-### 开发模式启动
-
-```bash
-npm run dev
-```
-
-使用 nodemon 实现热重载，修改代码后自动重启服务。
-
-## 许可证
-
-MIT License - 自由使用、修改和分发
+上传的文件默认存储在 `static/uploads` 目录中。
 
 ---
 
