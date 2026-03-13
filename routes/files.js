@@ -511,11 +511,13 @@ router.put('/shares/:id', authMiddleware, (req, res) => {
 
   const finalTitle = title || share.title;
 
-  // 处理密码：如果传了password字段且不为空，则更新密码；否则保持原密码
+  // 处理密码：如果传了password字段且不为空，则更新密码；如果是null则保持原密码；如果是空字符串则清空密码
   let passwordValue = share.password;
   let plainPasswordValue = share.plain_password;
   if (password !== undefined) {
-    if (password) {
+    if (password === null) {
+      // null 表示保持原密码，不做任何修改
+    } else if (password) {
       passwordValue = bcrypt.hashSync(password, 10);
       plainPasswordValue = password; // 保存明文密码
     } else {

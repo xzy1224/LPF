@@ -1131,8 +1131,7 @@ document.getElementById('generateCollectLink').addEventListener('click', async (
   try {
     const { url } = await api('/api/collect/generate', { method: 'POST' });
     const fullUrl = window.location.origin + url;
-    await navigator.clipboard.writeText(fullUrl);
-    showToast('链接已复制到剪贴板', 'success');
+    copyToClipboard(fullUrl, '链接已复制到剪贴板');
     loadCollectLinks();
   } catch (err) {
     showToast(err.message, 'error');
@@ -1141,8 +1140,7 @@ document.getElementById('generateCollectLink').addEventListener('click', async (
 
 function copyCollectLink(token) {
   const url = `${window.location.origin}/collect/${token}`;
-  navigator.clipboard.writeText(url);
-  showToast('链接已复制', 'success');
+  copyToClipboard(url, '链接已复制');
 }
 
 async function deleteCollectLink(id) {
@@ -1239,7 +1237,7 @@ async function loadShares(page = 1, pageSize = null) {
           <td>${createdText}</td>
           <td>
             <button class="btn btn-sm btn-outline-primary" onclick="copyShareLink('${shareUrl}')" title="复制链接"><i class="bi bi-clipboard"></i></button>
-            <button class="btn btn-sm btn-outline-primary" onclick="openEditShareModal(${share.id}, '${share.title}', '${share.type}', '${share.expires_at || ''}')" title="编辑"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-primary" onclick="openEditShareModal(${share.id}, '${share.title}', '${share.type}', '${share.expires_at || ''}', ${share.plain_password ? 'true' : 'false'})" title="编辑"><i class="bi bi-pencil"></i></button>
             <button class="btn btn-sm btn-outline-danger" onclick="deleteShare(${share.id})" title="删除"><i class="bi bi-trash"></i></button>
           </td>
         </tr>
@@ -1254,24 +1252,53 @@ async function loadShares(page = 1, pageSize = null) {
 }
 
 window.copyShareLink = function(url) {
-  navigator.clipboard.writeText(url);
-  showToast('链接已复制', 'success');
+  copyToClipboard(url, '链接已复制');
 };
 
 window.copySharePassword = function(password) {
-  navigator.clipboard.writeText(password);
-  showToast('密码已复制', 'success');
+  copyToClipboard(password, '密码已复制');
 };
+
+function copyToClipboard(text, successMsg) {
+  // 优先使用 Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(successMsg, 'success');
+    }).catch(() => {
+      fallbackCopy(text, successMsg);
+    });
+  } else {
+    fallbackCopy(text, successMsg);
+  }
+}
+
+function fallbackCopy(text, successMsg) {
+  // 后备方案：使用 textarea + execCommand
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    showToast(successMsg, 'success');
+  } catch (err) {
+    showToast('复制失败，请手动复制', 'danger');
+  }
+  document.body.removeChild(textarea);
+}
 
 let currentEditShareId = null;
 
-window.openEditShareModal = function(id, title, type, expiresAt) {
+window.openEditShareModal = function(id, title, type, expiresAt, hasPassword) {
   currentEditShareId = id;
   document.getElementById('editShareTitle').value = title || '';
   document.getElementById('editShareType').value = type || 'permanent';
   document.getElementById('editShareExpiresAt').value = expiresAt ? expiresAt.slice(0, 16) : '';
   document.getElementById('editShareExpiresContainer').style.display = type === 'temporary' ? 'block' : 'none';
   document.getElementById('editSharePassword').value = ''; // 清空密码输入框
+  document.getElementById('editSharePassword').dataset.hasPassword = hasPassword ? 'true' : 'false';
 
   const modal = new bootstrap.Modal(document.getElementById('editShareModal'));
   modal.show();
@@ -1287,7 +1314,14 @@ document.getElementById('saveShareBtn')?.addEventListener('click', async functio
   const title = document.getElementById('editShareTitle').value;
   const type = document.getElementById('editShareType').value;
   const expiresAt = document.getElementById('editShareExpiresAt').value;
-  const password = document.getElementById('editSharePassword').value;
+  const passwordInput = document.getElementById('editSharePassword');
+  const hasPassword = passwordInput.dataset.hasPassword === 'true';
+  const newPassword = passwordInput.value;
+
+  // 如果没有填写新密码，且原本有密码，则保持原密码（传 null 表示不修改密码）
+  // 如果没有填写新密码，且原本无密码，则保持无密码（传空字符串或不传）
+  // 只有填写了新密码，才传新密码
+  const password = newPassword ? newPassword : (hasPassword ? null : '');
 
   try {
     await api(`/api/files/shares/${currentEditShareId}`, {
@@ -1461,21 +1495,12 @@ function generateOpenApiShareLink() {
   const shareUrl = `${window.location.protocol}//${serverAddress}/#/openapi?token=${currentOpenApiToken}`;
 
   // 复制到剪贴板
-  navigator.clipboard.writeText(shareUrl).then(() => {
-    showToast('分享链接已复制到剪贴板', 'success');
-  }).catch(() => {
-    // 如果剪贴板失败，显示链接
-    prompt('分享链接：', shareUrl);
-  });
+  copyToClipboard(shareUrl, '分享链接已复制到剪贴板');
 }
 
 function copyServerAddress() {
   const serverAddress = window.location.host;
-  navigator.clipboard.writeText(serverAddress).then(() => {
-    showToast('服务器地址已复制', 'success');
-  }).catch(() => {
-    showToast('复制失败', 'error');
-  });
+  copyToClipboard(serverAddress, '服务器地址已复制');
 }
 
 document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
@@ -1498,13 +1523,8 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
 
 document.getElementById('copyPreviewLinkBtn').addEventListener('click', async () => {
   if (!currentPreviewUrl) { showToast('无链接可复制', 'warning'); return; }
-  try {
-    const fullUrl = currentPreviewUrl.startsWith('http') ? currentPreviewUrl : window.location.origin + currentPreviewUrl;
-    await navigator.clipboard.writeText(fullUrl);
-    showToast('链接已复制', 'success');
-  } catch (err) {
-    showToast('复制失败', 'error');
-  }
+  const fullUrl = currentPreviewUrl.startsWith('http') ? currentPreviewUrl : window.location.origin + currentPreviewUrl;
+  copyToClipboard(fullUrl, '链接已复制');
 });
 
 // ========== 初始化 ==========
