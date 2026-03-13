@@ -625,10 +625,14 @@ let sharePreSelectedFiles = [];
 async function shareSingleFile(id) {
   currentShareFileId = id;
   sharePreSelectedFiles = [id];
+  currentFilesForShare = []; // 清空之前的文件列表
 
   try {
     // 获取文件信息
     const file = await api(`/api/files/${id}`);
+
+    // 更新 currentFilesForShare
+    currentFilesForShare = [file];
 
     const fileList = document.getElementById('shareFileList');
     const fileInfo = getFileInfo(file.original_name);

@@ -1,45 +1,39 @@
-const initSqlJs = require('sql.js');
+const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
 const config = require('./config');
 const dbPath = path.join(__dirname, config.database.path);
-let sqlDb = null;
+let db = null;
 
 // 获取本地时间字符串 (格式: YYYY-MM-DD HH:mm:ss)
 function getLocalDateTime() {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+  const day = String(now.getDate()).toString().padStart(2, '0');
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const seconds = String(now.getSeconds()).padStart(2, '0');
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
-async function initDatabase() {
-  // Ensure database directory exists
+function initDatabase() {
+  // 确保数据库目录存在
   const dbDir = path.dirname(dbPath);
   if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
   }
 
-  const wasmPath = path.join(__dirname, 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
-  const wasmBinary = fs.readFileSync(wasmPath);
-  const SQL = await initSqlJs({ wasmBinary });
+  // 打开数据库连接
+  db = new Database(dbPath);
 
-  // 加载现有数据库，如果不存在则创建新数据库
-  if (fs.existsSync(dbPath)) {
-    const fileBuffer = fs.readFileSync(dbPath);
-    sqlDb = new SQL.Database(fileBuffer);
-  } else {
-    sqlDb = new SQL.Database();
-  }
+  // 启用外键约束
+  db.pragma('foreign_keys = ON');
 
   // 创建用户表
-  sqlDb.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
@@ -49,7 +43,7 @@ async function initDatabase() {
   `);
 
   // 创建文件表
-  sqlDb.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS files (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       filename TEXT NOT NULL,
@@ -65,41 +59,15 @@ async function initDatabase() {
   `);
 
   // 数据库迁移：检查 is_preview_open 字段是否存在，不存在则添加
-  try {
-    // 检查表是否有数据
-    const countResult = sqlDb.exec("SELECT COUNT(*) FROM files");
-    if (countResult.length > 0 && countResult[0].values[0][0] > 0) {
-      // 表有数据，检查 is_preview_open 字段
-      sqlDb.exec("SELECT is_preview_open FROM files LIMIT 1");
-    }
-  } catch (e) {
-    // 字段不存在，添加新字段
-    try {
-      sqlDb.run("ALTER TABLE files ADD COLUMN is_preview_open INTEGER DEFAULT 0");
-      console.log("Database migrated: added is_preview_open column");
-    } catch (alterError) {
-      // 如果 ALTER TABLE 失败（某些 sqlite 版本不支持），则重建表
-      sqlDb.run("DROP TABLE IF EXISTS files");
-      sqlDb.run(`
-        CREATE TABLE files (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          filename TEXT NOT NULL,
-          original_name TEXT NOT NULL,
-          size INTEGER NOT NULL,
-          path TEXT NOT NULL,
-          user_id INTEGER NOT NULL,
-          created_at DATETIME,
-          is_public INTEGER DEFAULT 0,
-          is_preview_open INTEGER DEFAULT 0,
-          FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-      `);
-      console.log("Database migrated: recreated files table with is_preview_open column");
-    }
+  const fileColumns = db.prepare("PRAGMA table_info(files)").all();
+  const columnNames = fileColumns.map(col => col.name);
+  if (!columnNames.includes('is_preview_open')) {
+    db.exec("ALTER TABLE files ADD COLUMN is_preview_open INTEGER DEFAULT 0");
+    console.log("Database migrated: added is_preview_open column");
   }
 
   // 创建Token表
-  sqlDb.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS tokens (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -114,13 +82,13 @@ async function initDatabase() {
 
   // 迁移：为tokens表添加user_id列（如果不存在）
   try {
-    sqlDb.run('ALTER TABLE tokens ADD COLUMN user_id INTEGER');
+    db.exec('ALTER TABLE tokens ADD COLUMN user_id INTEGER');
   } catch (e) {
     // 列已存在，忽略错误
   }
 
   // 创建文件分享表
-  sqlDb.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS file_shares (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT,
@@ -130,82 +98,34 @@ async function initDatabase() {
       expires_at DATETIME,
       created_at DATETIME,
       user_id INTEGER NOT NULL,
+      password TEXT,
+      plain_password TEXT,
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
 
-  // 迁移：检测并修复 file_shares 表结构（旧版本使用 file_id 单数）
-  let needsMigration = false;
-  try {
-    // 检查是否存在旧结构的 file_id 列
-    sqlDb.exec("SELECT file_id FROM file_shares LIMIT 1");
-    needsMigration = true;
-  } catch (e) {
-    // 检查是否有 file_ids 列
-    try {
-      sqlDb.exec("SELECT file_ids FROM file_shares LIMIT 1");
-    } catch (e2) {
-      needsMigration = true;
-    }
-  }
-
-  if (needsMigration) {
-    try {
-      // 备份旧数据（如果有）
-      let oldData = [];
-      try {
-        oldData = sqlDb.exec("SELECT * FROM file_shares");
-      } catch (e) {}
-
-      // 重建表
-      sqlDb.run("DROP TABLE IF EXISTS file_shares");
-      sqlDb.run(`
-        CREATE TABLE file_shares (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          title TEXT,
-          token TEXT UNIQUE NOT NULL,
-          file_ids TEXT NOT NULL,
-          type TEXT DEFAULT 'permanent',
-          expires_at DATETIME,
-          created_at DATETIME,
-          user_id INTEGER NOT NULL,
-          password TEXT,
-          plain_password TEXT,
-          FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-      `);
-      console.log("Database migrated: recreated file_shares table");
-    } catch (e) {
-      console.error("Error migrating file_shares:", e);
-    }
-  }
-
   // 迁移：为file_shares表添加password列（如果不存在）
   try {
-    sqlDb.run('ALTER TABLE file_shares ADD COLUMN password TEXT');
+    db.exec('ALTER TABLE file_shares ADD COLUMN password TEXT');
   } catch (e) {
     // 列已存在，忽略错误
   }
 
   // 迁移：为file_shares表添加plain_password列（明文密码）
   try {
-    sqlDb.run('ALTER TABLE file_shares ADD COLUMN plain_password TEXT');
+    db.exec('ALTER TABLE file_shares ADD COLUMN plain_password TEXT');
   } catch (e) {
     // 列已存在，忽略错误
   }
 
   // 检查并迁移 collect_links 表
-  let collectLinksTableExists = false;
-  try {
-    const collectLinksResult = sqlDb.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='collect_links'");
-    collectLinksTableExists = collectLinksResult.length > 0 && collectLinksResult[0].values.length > 0;
-  } catch (e) {
-    collectLinksTableExists = false;
-  }
+  const collectLinksTableExists = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='collect_links'"
+  ).get();
 
   if (!collectLinksTableExists) {
     // 表不存在，创建新表
-    sqlDb.run(`
+    db.exec(`
       CREATE TABLE collect_links (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         token TEXT UNIQUE NOT NULL,
@@ -222,13 +142,14 @@ async function initDatabase() {
     `);
   } else {
     // 表已存在，检查是否需要添加新字段
+    const collectColumns = db.prepare("PRAGMA table_info(collect_links)").all();
+    const collectColumnNames = collectColumns.map(col => col.name);
+
     const addColumnIfNotExists = (columnName, columnDef) => {
-      try {
-        sqlDb.exec(`SELECT ${columnName} FROM collect_links LIMIT 1`);
-      } catch (e) {
+      if (!collectColumnNames.includes(columnName)) {
         try {
-          sqlDb.run(`ALTER TABLE collect_links ADD COLUMN ${columnName} ${columnDef}`);
-        } catch (e2) {
+          db.exec(`ALTER TABLE collect_links ADD COLUMN ${columnName} ${columnDef}`);
+        } catch (e) {
           // 忽略错误
         }
       }
@@ -244,26 +165,18 @@ async function initDatabase() {
   }
 
   // 创建默认管理员账号
-  const result = sqlDb.exec("SELECT id FROM users WHERE username = 'admin'");
-  if (result.length === 0 || result[0].values.length === 0) {
+  const adminUser = db.prepare("SELECT id FROM users WHERE username = 'admin'").get();
+  if (!adminUser) {
     const passwordHash = bcrypt.hashSync('admin123', 10);
-    sqlDb.run('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)', ['admin', passwordHash, getLocalDateTime()]);
+    db.prepare('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)').run('admin', passwordHash, getLocalDateTime());
     console.log('Default admin account created: admin / admin123');
   }
 
-  saveDatabase();
-  return sqlDb;
+  console.log('Database initialized successfully');
+  return db;
 }
 
-function saveDatabase() {
-  if (sqlDb) {
-    const data = sqlDb.export();
-    const buffer = Buffer.from(data);
-    fs.writeFileSync(dbPath, buffer);
-  }
-}
-
-// 封装类似 better-sqlite3 的 API
+// 封装类似 better-sqlite3 的 API（兼容旧代码）
 function prepare(sql) {
   // 检查是否是 INSERT 语句
   const isInsert = sql.trim().toUpperCase().startsWith('INSERT');
@@ -281,59 +194,30 @@ function prepare(sql) {
       if (hasCreatedAtColumn && params.length < placeholderCount) {
         finalParams = [...params, getLocalDateTime()];
       }
-      sqlDb.run(sql, finalParams);
-      saveDatabase();
-      // 安全获取 lastInsertRowid
-      let lastId = null;
-      try {
-        const result = sqlDb.exec("SELECT last_insert_rowid()");
-        if (result.length > 0 && result[0].values.length > 0) {
-          lastId = result[0].values[0][0];
-        }
-      } catch (e) {
-        // 忽略错误
-      }
-      return { lastInsertRowid: lastId };
+      return db.prepare(sql).run(...finalParams);
     },
     get: (...params) => {
-      const stmt = sqlDb.prepare(sql);
-      // 只有当有占位符时才绑定参数
-      if (placeholderCount > 0 && params.length > 0) {
-        stmt.bind(params);
-      }
-      if (stmt.step()) {
-        const row = stmt.getAsObject();
-        stmt.free();
-        return row;
-      }
-      stmt.free();
-      return undefined;
+      return db.prepare(sql).get(...params);
     },
     all: (...params) => {
-      const stmt = sqlDb.prepare(sql);
-      // 只有当有占位符时才绑定参数
-      if (placeholderCount > 0 && params.length > 0) {
-        stmt.bind(params);
-      }
-      const results = [];
-      while (stmt.step()) {
-        results.push(stmt.getAsObject());
-      }
-      stmt.free();
-      return results;
+      return db.prepare(sql).all(...params);
     }
   };
 }
 
 // 兼容旧代码
 function dbExec(sql) {
-  sqlDb.run(sql);
-  saveDatabase();
+  db.exec(sql);
 }
 
-const db = {
+function saveDatabase() {
+  // better-sqlite3 自动持久化，无需手动保存
+  // 保留此函数以兼容旧代码
+}
+
+const database = {
   exec: dbExec,
   prepare: prepare
 };
 
-module.exports = { initDatabase, db, saveDatabase };
+module.exports = { initDatabase, db: database, saveDatabase };
