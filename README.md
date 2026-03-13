@@ -180,16 +180,6 @@ module.exports = {
     dir: 'static/uploads',                    // 上传目录
     maxFileSize: 50 * 1024 * 1024 * 1024,     // 最大文件大小 (50GB)
     maxFiles: 50                              // 批量上传最大文件数
-  },
-
-  // Token 配置
-  token: {
-    expireDays: 30   // Token 过期天数
-  },
-
-  // 分享配置
-  share: {
-    expireDays: 7    // 分享链接过期天数，0 表示永久有效
   }
 };
 ```

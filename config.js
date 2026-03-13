@@ -21,17 +21,5 @@ module.exports = {
     maxFileSize: 50 * 1024 * 1024 * 1024,
     // Max files per batch upload
     maxFiles: 50
-  },
-
-  // Token
-  token: {
-    // Token expiration (days)
-    expireDays: 30
-  },
-
-  // Share
-  share: {
-    // Share link expiration (days), 0 means never expire
-    expireDays: 7
   }
 };
